@@ -1,0 +1,687 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1322">
+<style>body{margin:0;font:14px system-ui}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}</style>
+<title>Atoms!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen lab bench. Header (name + turn), the reaction grid filling all spare space, a control strip below.
+   Single deliberate world: a dim cloud-chamber blue with four charged player colours. */
+:root {
+  --ink: #0d1322;        /* page ground */
+  --bench: #151d31;      /* raised surfaces */
+  --rule: #27324e;       /* grid lines, borders */
+  --text: #e7ebf5;
+  --muted: #8d97b3;
+  --p0: #ff6f5e;         /* coral */
+  --p1: #3fd3c8;         /* teal */
+  --p2: #ffc247;         /* amber */
+  --p3: #b493ff;         /* lilac */
+  --turn: var(--p0);
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: radial-gradient(120% 80% at 50% 0%, #17213a 0%, var(--ink) 60%) fixed, var(--ink);
+  color: var(--text);
+  font-family: var(--mono);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.app {
+  height: 100%;
+  display: flex; flex-direction: column; gap: 12px;
+  padding-inline: 16px; padding-block: 12px;
+  box-sizing: border-box;
+  max-width: 760px; margin: 0 auto;
+}
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 {
+  font-family: var(--display); font-weight: 800; font-size: 1.9rem; letter-spacing: -0.02em;
+  margin: 0; line-height: 1;
+}
+h1 span { color: var(--turn); transition: color .4s; }
+.iconbtn {
+  background: none; border: 1px solid var(--rule); color: var(--muted);
+  border-radius: 999px; height: 36px; min-width: 36px; padding: 0 12px;
+  font: 600 0.72rem var(--mono); letter-spacing: .08em; text-transform: uppercase; cursor: pointer;
+}
+.iconbtn:hover { color: var(--text); border-color: var(--muted); }
+.head-actions { display: flex; gap: 8px; }
+
+.players { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px 6px 8px; border-radius: 999px;
+  background: var(--bench); border: 1px solid transparent;
+  font-size: .78rem; font-variant-numeric: tabular-nums;
+  transition: border-color .3s, opacity .3s, transform .3s;
+}
+.chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+.chip.on { border-color: var(--c); transform: translateY(-1px); }
+.chip.out { opacity: .35; text-decoration: line-through; }
+.chip b { font-weight: 600; }
+.chip small { color: var(--muted); font-size: .7rem; }
+
+.stage { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
+canvas {
+  display: block; border-radius: 14px; touch-action: manipulation; cursor: pointer;
+  box-shadow: 0 0 0 1px var(--rule), 0 0 40px -10px var(--turn);
+  transition: box-shadow .5s;
+}
+canvas:focus-visible { outline: 2px solid var(--turn); outline-offset: 4px; }
+
+footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#status { color: var(--muted); font-size: .8rem; min-width: 0; }
+#status b { color: var(--turn); font-weight: 600; }
+.primary {
+  background: var(--text); color: var(--ink); border: 0; border-radius: 999px;
+  padding: 10px 18px; font: 600 .8rem var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+  flex-shrink: 0;
+}
+button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
+
+/* Sheets (setup, credits, result) */
+.veil {
+  position: fixed; inset: 0; background: rgba(6, 9, 18, .72); backdrop-filter: blur(6px);
+  display: grid; place-items: end center; z-index: 10; padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-height: 640px) and (min-width: 560px) { .veil { place-items: center; } }
+.sheet {
+  width: 100%; max-width: 460px; max-height: calc(100% - 8px); overflow-y: auto; box-sizing: border-box;
+  background: var(--bench); border: 1px solid var(--rule); border-radius: 18px; padding: 20px;
+  display: flex; flex-direction: column; gap: 16px;
+  animation: rise .35s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes rise { from { transform: translateY(24px); opacity: 0; } }
+.sheet h2 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; margin: 0; text-wrap: balance; }
+.sheet h3 { font: 600 .7rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.sheet p { margin: 0; line-height: 1.55; font-size: .84rem; color: #c9d0e2; }
+.sheet a { color: var(--p1); }
+.slot { display: flex; align-items: center; gap: 10px; }
+.slot i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); flex-shrink: 0; }
+.slot span { flex: 1; font-size: .84rem; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
+.seg button {
+  background: none; border: 0; color: var(--muted); padding: 7px 12px; cursor: pointer;
+  font: 600 .72rem var(--mono); letter-spacing: .05em; text-transform: uppercase;
+}
+.seg button[aria-pressed="true"] { background: var(--rule); color: var(--text); }
+.rules { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .8rem; color: #c9d0e2; }
+.rules dt { color: var(--muted); }
+.rules dd { margin: 0; }
+.credit { border-left: 2px solid var(--c); padding-left: 12px; display: flex; flex-direction: column; gap: 4px; }
+.credit strong { font-family: var(--display); font-size: 1.05rem; font-weight: 800; }
+.row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.ghost { background: none; border: 1px solid var(--rule); color: var(--text); border-radius: 999px; padding: 10px 18px; font: 600 .8rem var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.winner { font-family: var(--display); font-weight: 800; font-size: 2.4rem; line-height: 1; color: var(--turn); margin: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media (max-width: 380px) { h1 { font-size: 1.5rem; } .chip { font-size: .72rem; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Atoms<span>!</span></h1>
+    <div class="head-actions">
+      <button class="iconbtn" id="soundBtn" aria-pressed="true" title="Sound on/off">Sound</button>
+      <button class="iconbtn" id="aboutBtn">Credits</button>
+    </div>
+  </header>
+  <div class="players" id="players"></div>
+  <div class="stage" id="stage">
+    <canvas id="board" tabindex="0" aria-label="Atoms board. Use arrow keys to move, Enter to place an atom."></canvas>
+  </div>
+  <footer>
+    <div id="status" aria-live="polite"></div>
+    <button class="primary" id="newBtn">New game</button>
+  </footer>
+</div>
+
+<div class="veil" id="setup" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <h2 id="setupTitle">New reaction</h2>
+    <h3>Players</h3>
+    <div id="slots" style="display:flex;flex-direction:column;gap:10px"></div>
+    <h3>Grid</h3>
+    <div class="seg" id="sizes" role="group" aria-label="Grid size"></div>
+    <h3>How it works</h3>
+    <dl class="rules">
+      <dt>Place</dt><dd>Tap an empty square or one of your own to add an atom.</dd>
+      <dt>Critical</dt><dd>Corners hold 1, edges 2, the middle 3. One more and the square explodes.</dd>
+      <dt>Explode</dt><dd>Each neighbour receives an atom and turns your colour. Chains follow.</dd>
+      <dt>Win</dt><dd>Be the last colour left on the grid.</dd>
+    </dl>
+    <div class="row">
+      <button class="ghost" id="setupCancel">Cancel</button>
+      <button class="primary" id="startBtn">Start</button>
+    </div>
+  </div>
+</div>
+
+<div class="veil" id="about" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">Credits</h2>
+    <p>This is a fan-made browser tribute. The game design belongs to the people below.</p>
+    <div class="credit" style="--c: var(--p2)">
+      <h3>Atari ST original</h3>
+      <strong>Atoms by B. Hewlett</strong>
+      <p>Freeware strategy game for the Atari ST, catalogued around 1989, for 2 to 4 players with the mouse.</p>
+    </div>
+    <div class="credit" style="--c: var(--p1)">
+      <h3>Amiga version</h3>
+      <strong>Atoms by Tom Kuhn</strong>
+      <p>Written in 68000 assembly and based on the ST version by B. Hewlett. Spread through the PD scene and the Amiga Format cover disks, and still on <a href="https://aminet.net/package/game/2play/atoms" target="_blank" rel="noopener">Aminet</a>.</p>
+    </div>
+    <div class="credit" style="--c: var(--p3)">
+      <h3>Also on the Amiga</h3>
+      <strong>Atoms by John Girvin (1992)</strong>
+      <p>A separate Amiga conversion of the same ST game, now <a href="https://aminet.net/package/game/think/atoms_halibut" target="_blank" rel="noopener">open source</a>.</p>
+    </div>
+    <div class="credit" style="--c: var(--p0)">
+      <h3>This remake</h3>
+      <strong>Atoms! for browsers</strong>
+      <p>New code and graphics, written from the published rules. No original code or artwork is used.</p>
+    </div>
+    <div class="row"><button class="primary" id="aboutClose">Close</button></div>
+  </div>
+</div>
+
+<div class="veil" id="result" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="winText">
+    <h3>Reaction complete</h3>
+    <p class="winner" id="winText"></p>
+    <p id="winSub"></p>
+    <div class="row">
+      <button class="ghost" id="resultSetup">Change players</button>
+      <button class="primary" id="rematchBtn">Rematch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const css = getComputedStyle(document.documentElement);
+const COLORS = [0,1,2,3].map(i => css.getPropertyValue('--p' + i).trim());
+const NAMES = ['Coral', 'Teal', 'Amber', 'Lilac'];
+const SIZES = { '5×8': [5, 8], '6×9': [6, 9], '7×11': [7, 11] };
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const $ = id => document.getElementById(id);
+const canvas = $('board'), ctx = canvas.getContext('2d');
+
+let cfg = { slots: ['human', 'cpu', 'off', 'off'], size: '6×9' };
+let G = null;           // game state
+let busy = false;       // a move is resolving
+let sound = true;
+let cursor = 0;         // keyboard cursor
+let showCursor = false;
+let geo = { s: 40, w: 0, h: 0, dpr: 1 };
+const fx = { particles: [], flashes: [], bumps: new Map(), shakes: new Map() };
+
+/* ---------- rules ---------- */
+function makeGame(cols, rows, slots) {
+  const players = [];
+  slots.forEach((k, i) => { if (k !== 'off') players.push({ c: i, kind: k, alive: true, moved: false }); });
+  const n = cols * rows, nb = [], cap = [];
+  for (let i = 0; i < n; i++) {
+    const x = i % cols, y = (i / cols) | 0, a = [];
+    if (y > 0) a.push(i - cols);
+    if (x < cols - 1) a.push(i + 1);
+    if (y < rows - 1) a.push(i + cols);
+    if (x > 0) a.push(i - 1);
+    nb.push(a); cap.push(a.length);
+  }
+  return { cols, rows, nb, cap, o: new Array(n).fill(-1), k: new Array(n).fill(0), players, turn: 0, over: false, moves: 0 };
+}
+const cur = () => G.players[G.turn];
+const legal = (g, i, p) => g.o[i] === -1 || g.o[i] === p;
+const allMoved = g => g.players.every(p => p.moved || !p.alive);
+
+function owners(g, o) {
+  const set = new Set(); for (const v of o) if (v >= 0) set.add(v); return set;
+}
+
+// Synchronous resolve used by the CPU's look-ahead.
+function simulate(g, o, k, i, p, everyoneMoved) {
+  o[i] = p; k[i]++;
+  let queue = k[i] >= g.cap[i] ? [i] : [], guard = 0;
+  while (queue.length && guard++ < 300) {
+    const next = [];
+    for (const u of queue) {
+      if (k[u] < g.cap[u]) continue;
+      const own = o[u];
+      k[u] -= g.cap[u]; if (k[u] === 0) o[u] = -1;
+      for (const v of g.nb[u]) { k[v]++; o[v] = own; if (k[v] >= g.cap[v]) next.push(v); }
+      if (k[u] >= g.cap[u]) next.push(u);
+    }
+    if (everyoneMoved && owners(g, o).size <= 1) break;
+    queue = next;
+  }
+}
+
+/* ---------- CPU ---------- */
+function evaluate(g, o, k, me, everyoneMoved) {
+  let mine = 0, theirs = 0, score = 0;
+  const live = new Set();
+  for (let i = 0; i < o.length; i++) {
+    if (o[i] === -1) continue;
+    live.add(o[i]);
+    if (o[i] !== me) { theirs += k[i]; continue; }
+    mine += k[i];
+    let threatened = false;
+    for (const v of g.nb[i]) if (o[v] !== -1 && o[v] !== me && k[v] === g.cap[v] - 1) { threatened = true; score -= 5 - g.cap[i]; }
+    if (!threatened) {
+      if (g.cap[i] === 2) score += 3; else if (g.cap[i] === 3) score += 2;
+      if (k[i] === g.cap[i] - 1) score += 2;
+    }
+  }
+  if (mine === 0 && everyoneMoved) return -1e6;
+  if (everyoneMoved && live.size === 1 && live.has(me)) return 1e6;
+  return score + mine - theirs * 0.8;
+}
+
+function cpuMove() {
+  const me = cur().c, n = G.o.length;
+  const moved = G.players.every(p => p.moved || p === cur() || !p.alive);
+  const nextP = G.players[nextAliveIndex(G.turn)];
+  let best = -Infinity, pick = [];
+  for (let i = 0; i < n; i++) {
+    if (!legal(G, i, me)) continue;
+    const o = G.o.slice(), k = G.k.slice();
+    simulate(G, o, k, i, me, moved);
+    let s = evaluate(G, o, k, me, moved);
+    if (s < 1e6 && nextP && nextP.c !== me) {
+      // assume the next player replies with whatever hurts us most
+      let worst = Infinity;
+      const nextMoved = moved && nextP.moved;
+      for (let j = 0; j < n; j++) {
+        if (o[j] !== -1 && o[j] !== nextP.c) continue;
+        const o2 = o.slice(), k2 = k.slice();
+        simulate(G, o2, k2, j, nextP.c, true);
+        const s2 = evaluate(G, o2, k2, me, nextMoved || true);
+        if (s2 < worst) worst = s2;
+      }
+      if (worst !== Infinity) s = worst * 0.85 + s * 0.15;
+    }
+    s += Math.random() * 0.5;
+    if (s > best + 1e-9) { best = s; pick = [i]; } else if (Math.abs(s - best) < 1e-9) pick.push(i);
+  }
+  return pick[(Math.random() * pick.length) | 0];
+}
+
+/* ---------- turn flow ---------- */
+function nextAliveIndex(t) {
+  for (let s = 1; s <= G.players.length; s++) {
+    const j = (t + s) % G.players.length;
+    if (G.players[j].alive) return j;
+  }
+  return t;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function play(i) {
+  if (busy || G.over) return;
+  const p = cur();
+  if (!legal(G, i, p.c)) { fx.shakes.set(i, performance.now()); blip(140, .04); return; }
+  busy = true;
+  p.moved = true; G.moves++;
+  G.o[i] = p.c; G.k[i]++;
+  fx.bumps.set(i, performance.now());
+  blip(520 + G.k[i] * 90, .06);
+  await resolveChain();
+  afterMove();
+  busy = false;
+  render();
+  maybeCpu();
+}
+
+async function resolveChain() {
+  let wave = 0;
+  while (true) {
+    const hot = [];
+    for (let i = 0; i < G.o.length; i++) if (G.k[i] >= G.cap[i]) hot.push(i);
+    if (!hot.length) break;
+    if (allMoved(G) && owners(G, G.o).size <= 1) break;
+    if (wave > 400) break;
+    const dur = reduced ? 90 : Math.max(130, 300 - wave * 18);
+    const now = performance.now(), arrivals = [];
+    for (const u of hot) {
+      const own = G.o[u];
+      G.k[u] -= G.cap[u]; if (G.k[u] === 0) G.o[u] = -1;
+      fx.flashes.push({ i: u, c: own, t0: now, d: dur * 1.6 });
+      for (const v of G.nb[u]) {
+        fx.particles.push({ a: u, b: v, c: own, t0: now, d: dur });
+        arrivals.push([v, own]);
+      }
+    }
+    boom(wave, hot.length);
+    await sleep(dur);
+    const t = performance.now();
+    for (const [v, own] of arrivals) { G.k[v]++; G.o[v] = own; fx.bumps.set(v, t); }
+    updateHud();
+    wave++;
+  }
+}
+
+function afterMove() {
+  if (allMoved(G)) {
+    for (const p of G.players) if (p.alive && p.moved && !G.o.includes(p.c)) p.alive = false;
+  }
+  const alive = G.players.filter(p => p.alive);
+  if (alive.length === 1 && allMoved(G)) {
+    G.over = true; G.turn = G.players.indexOf(alive[0]);
+    updateHud(); showResult(alive[0]); return;
+  }
+  G.turn = nextAliveIndex(G.turn);
+  updateHud();
+}
+
+async function maybeCpu() {
+  if (!G || G.over || busy || cur().kind !== 'cpu') return;
+  busy = true;
+  const g = G;
+  await sleep(reduced ? 150 : 420);
+  if (g !== G) return;
+  const i = cpuMove();
+  busy = false;
+  if (i !== undefined) play(i);
+}
+
+/* ---------- HUD ---------- */
+function updateHud() {
+  const p = cur();
+  document.documentElement.style.setProperty('--turn', COLORS[p.c]);
+  const counts = G.players.map(pl => G.k.reduce((s, v, i) => s + (G.o[i] === pl.c ? v : 0), 0));
+  $('players').innerHTML = G.players.map((pl, j) => `
+    <div class="chip ${j === G.turn && !G.over ? 'on' : ''} ${pl.alive ? '' : 'out'}" style="--c:${COLORS[pl.c]}">
+      <i></i><b>${NAMES[pl.c]}</b><small>${pl.kind === 'cpu' ? 'CPU' : 'You'} · ${counts[j]}</small>
+    </div>`).join('');
+  $('status').innerHTML = G.over ? `<b>${NAMES[p.c]}</b> controls the grid.`
+    : p.kind === 'cpu' ? `<b>${NAMES[p.c]}</b> is thinking…`
+    : `<b>${NAMES[p.c]}</b> to play · move ${G.moves + 1}`;
+}
+
+function showResult(p) {
+  setTimeout(() => {
+    $('winText').textContent = `${NAMES[p.c]} wins`;
+    $('winText').style.color = COLORS[p.c];
+    const humans = G.players.filter(x => x.kind === 'human').length;
+    $('winSub').textContent = p.kind === 'cpu' && humans ? `The CPU took the grid in ${G.moves} moves. Try forcing it into the middle.`
+      : `Last colour standing after ${G.moves} moves.`;
+    openSheet('result');
+  }, reduced ? 100 : 700);
+}
+
+/* ---------- layout & drawing ---------- */
+function fit() {
+  if (!G) return;
+  const st = $('stage').getBoundingClientRect();
+  const s = Math.max(24, Math.floor(Math.min(st.width / G.cols, st.height / G.rows)));
+  geo.s = s; geo.w = s * G.cols; geo.h = s * G.rows; geo.dpr = Math.min(3, window.devicePixelRatio || 1);
+  canvas.style.width = geo.w + 'px'; canvas.style.height = geo.h + 'px';
+  canvas.width = Math.round(geo.w * geo.dpr); canvas.height = Math.round(geo.h * geo.dpr);
+}
+
+const center = i => [((i % G.cols) + .5) * geo.s, (((i / G.cols) | 0) + .5) * geo.s];
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+function hexA(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+const sprites = {};
+function atomSprite(c, r) {
+  const key = c + ':' + r;
+  if (sprites[key]) return sprites[key];
+  const pad = r * 1.6, size = Math.ceil((r + pad) * 2 * geo.dpr);
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const x = cv.getContext('2d'), m = size / 2, R = r * geo.dpr;
+  const glow = x.createRadialGradient(m, m, R * .6, m, m, R + pad * geo.dpr);
+  glow.addColorStop(0, hexA(COLORS[c], .45)); glow.addColorStop(1, hexA(COLORS[c], 0));
+  x.fillStyle = glow; x.fillRect(0, 0, size, size);
+  const body = x.createRadialGradient(m - R * .35, m - R * .4, R * .1, m, m, R);
+  body.addColorStop(0, '#ffffff'); body.addColorStop(.25, COLORS[c]); body.addColorStop(1, hexA(COLORS[c], .75));
+  x.fillStyle = body; x.beginPath(); x.arc(m, m, R, 0, Math.PI * 2); x.fill();
+  return (sprites[key] = { cv, size: size / geo.dpr });
+}
+
+function drawAtom(c, x, y, r, scale = 1) {
+  const sp = atomSprite(c, r);
+  const sz = sp.size * scale;
+  ctx.drawImage(sp.cv, x - sz / 2, y - sz / 2, sz, sz);
+}
+
+function draw(now) {
+  const { s, dpr } = geo;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, geo.w, geo.h);
+  ctx.fillStyle = '#121a2d'; ctx.fillRect(0, 0, geo.w, geo.h);
+  const turnC = G.over ? -1 : cur().c;
+
+  // cells
+  for (let i = 0; i < G.o.length; i++) {
+    const [cx, cy] = center(i), x = cx - s / 2, y = cy - s / 2;
+    if (G.o[i] >= 0) {
+      const crit = G.k[i] === G.cap[i] - 1;
+      const pulse = crit && !reduced ? (Math.sin(now / 180 + i) + 1) / 2 : 0;
+      ctx.fillStyle = hexA(COLORS[G.o[i]], .07 + .07 * pulse + (crit ? .05 : 0));
+      ctx.fillRect(x + 1, y + 1, s - 2, s - 2);
+    }
+  }
+  // grid
+  ctx.strokeStyle = 'rgba(80,98,140,.35)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let c = 1; c < G.cols; c++) { ctx.moveTo(c * s + .5, 0); ctx.lineTo(c * s + .5, geo.h); }
+  for (let r = 1; r < G.rows; r++) { ctx.moveTo(0, r * s + .5); ctx.lineTo(geo.w, r * s + .5); }
+  ctx.stroke();
+  // capacity dots: tiny marks in each empty cell corner showing how many it holds
+  ctx.fillStyle = 'rgba(141,151,179,.28)';
+  for (let i = 0; i < G.o.length; i++) {
+    if (G.o[i] !== -1) continue;
+    const [cx, cy] = center(i);
+    for (let d = 0; d < G.cap[i] - 1; d++) { ctx.beginPath(); ctx.arc(cx - (G.cap[i] - 2) * 3.5 + d * 7, cy, 1.6, 0, 7); ctx.fill(); }
+  }
+
+  // flashes
+  fx.flashes = fx.flashes.filter(f => now - f.t0 < f.d);
+  for (const f of fx.flashes) {
+    const t = (now - f.t0) / f.d, [cx, cy] = center(f.i);
+    ctx.strokeStyle = hexA(COLORS[f.c], (1 - t) * .9); ctx.lineWidth = 3 * (1 - t) + .5;
+    ctx.beginPath(); ctx.arc(cx, cy, s * (.2 + .7 * ease(t)), 0, 7); ctx.stroke();
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * .7);
+    g.addColorStop(0, hexA(COLORS[f.c], .5 * (1 - t))); g.addColorStop(1, hexA(COLORS[f.c], 0));
+    ctx.fillStyle = g; ctx.fillRect(cx - s, cy - s, s * 2, s * 2);
+  }
+
+  // atoms
+  const r = s * .13;
+  for (let i = 0; i < G.o.length; i++) {
+    const n = G.k[i]; if (!n || G.o[i] < 0) continue;
+    let [cx, cy] = center(i);
+    const cap = G.cap[i], crit = n >= cap - 1;
+    const sh = fx.shakes.get(i);
+    const bt = fx.bumps.get(i); let sc = 1;
+    if (bt !== undefined) { const t = (now - bt) / 260; if (t >= 1) fx.bumps.delete(i); else sc = 1 + .35 * Math.sin(t * Math.PI) * (1 - t); }
+    if (crit && !reduced) { cx += Math.sin(now / 37 + i * 3) * s * .015; cy += Math.cos(now / 41 + i) * s * .015; }
+    const speed = reduced ? 0 : (crit ? 2.6 : .7) * (i % 2 ? 1 : -1);
+    const ang = now / 1000 * speed + i;
+    const rad = n === 1 ? 0 : s * (n === 2 ? .15 : .19);
+    for (let a = 0; a < n; a++) {
+      const th = ang + a * Math.PI * 2 / n;
+      drawAtom(G.o[i], cx + Math.cos(th) * rad, cy + Math.sin(th) * rad, r, sc);
+    }
+  }
+  // shake feedback on illegal taps
+  for (const [i, t0] of fx.shakes) {
+    const t = (now - t0) / 350; if (t >= 1) { fx.shakes.delete(i); continue; }
+    const [cx, cy] = center(i);
+    ctx.strokeStyle = `rgba(255,255,255,${.6 * (1 - t)})`; ctx.lineWidth = 2;
+    const dx = Math.sin(t * 30) * 4 * (1 - t);
+    ctx.strokeRect(cx - s / 2 + 4 + dx, cy - s / 2 + 4, s - 8, s - 8);
+  }
+
+  // flying atoms
+  fx.particles = fx.particles.filter(p => now - p.t0 < p.d);
+  for (const p of fx.particles) {
+    const t = ease(Math.min(1, (now - p.t0) / p.d));
+    const [ax, ay] = center(p.a), [bx, by] = center(p.b);
+    for (let tr = 3; tr >= 1; tr--) {
+      const tt = Math.max(0, t - tr * .06);
+      ctx.globalAlpha = .18 * (4 - tr) / 3;
+      drawAtom(p.c, ax + (bx - ax) * tt, ay + (by - ay) * tt, r * .8);
+    }
+    ctx.globalAlpha = 1;
+    drawAtom(p.c, ax + (bx - ax) * t, ay + (by - ay) * t, r, 1.1);
+  }
+
+  // keyboard cursor
+  if (showCursor && turnC >= 0) {
+    const [cx, cy] = center(cursor);
+    ctx.strokeStyle = COLORS[turnC]; ctx.lineWidth = 2;
+    ctx.strokeRect(cx - s / 2 + 3, cy - s / 2 + 3, s - 6, s - 6);
+  }
+}
+
+function render() { if (G) draw(performance.now()); }
+function loop(now) { if (G) draw(now); requestAnimationFrame(loop); }
+
+/* ---------- sound ---------- */
+let ac = null;
+function audio() {
+  if (!sound) return null;
+  try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch { ac = null; }
+  return ac;
+}
+function blip(freq, vol) {
+  const a = audio(); if (!a) return;
+  const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+  o.type = 'sine'; o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 1.5, t + .08);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + .15);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + .16);
+}
+function boom(wave, count) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime, len = .22;
+  const buf = a.createBuffer(1, a.sampleRate * len, a.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 500 + Math.min(wave, 12) * 160;
+  const g = a.createGain(); g.gain.value = Math.min(.22, .08 + count * .02);
+  src.connect(f).connect(g).connect(a.destination); src.start(t);
+  blip(220 + Math.min(wave, 16) * 40, .035);
+}
+
+/* ---------- input ---------- */
+canvas.addEventListener('pointerup', e => {
+  if (!G || G.over || busy || cur().kind !== 'human') return;
+  const r = canvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / geo.s), y = Math.floor((e.clientY - r.top) / geo.s);
+  if (x < 0 || y < 0 || x >= G.cols || y >= G.rows) return;
+  showCursor = false; cursor = y * G.cols + x;
+  play(cursor);
+});
+canvas.addEventListener('keydown', e => {
+  if (!G) return;
+  const x = cursor % G.cols, y = (cursor / G.cols) | 0;
+  const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (mv) {
+    e.preventDefault(); showCursor = true;
+    const nx = Math.min(G.cols - 1, Math.max(0, x + mv[0])), ny = Math.min(G.rows - 1, Math.max(0, y + mv[1]));
+    cursor = ny * G.cols + nx;
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault(); showCursor = true;
+    if (!G.over && !busy && cur().kind === 'human') play(cursor);
+  }
+});
+
+/* ---------- sheets ---------- */
+function openSheet(id) { $(id).hidden = false; const b = $(id).querySelector('.primary'); b && b.focus(); }
+function closeSheet(id) { $(id).hidden = true; canvas.focus({ preventScroll: true }); }
+document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && (G || v.id !== 'setup')) closeSheet(v.id); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.veil:not([hidden])').forEach(v => G && closeSheet(v.id)); });
+
+function renderSetup() {
+  $('slots').innerHTML = cfg.slots.map((k, i) => `
+    <div class="slot" style="--c:${COLORS[i]}"><i></i><span>${NAMES[i]}</span>
+      <div class="seg" role="group" aria-label="${NAMES[i]}">
+        ${['off', 'human', 'cpu'].map(v => `<button data-slot="${i}" data-v="${v}" aria-pressed="${k === v}">${v === 'human' ? 'Human' : v === 'cpu' ? 'CPU' : 'Off'}</button>`).join('')}
+      </div></div>`).join('');
+  $('sizes').innerHTML = Object.keys(SIZES).map(k => `<button data-size="${k}" aria-pressed="${cfg.size === k}">${k}</button>`).join('');
+  const on = cfg.slots.filter(s => s !== 'off').length;
+  $('startBtn').disabled = on < 2; $('startBtn').style.opacity = on < 2 ? .4 : 1;
+  $('startBtn').textContent = on < 2 ? 'Need 2 players' : 'Start';
+}
+$('slots').addEventListener('click', e => {
+  const b = e.target.closest('button[data-slot]'); if (!b) return;
+  cfg.slots[+b.dataset.slot] = b.dataset.v; renderSetup();
+});
+$('sizes').addEventListener('click', e => {
+  const b = e.target.closest('button[data-size]'); if (!b) return;
+  cfg.size = b.dataset.size; renderSetup();
+});
+
+function startGame() {
+  let [c, r] = SIZES[cfg.size];
+  const st = $('stage').getBoundingClientRect();
+  if (st.width > st.height * 1.15) [c, r] = [r, c];   // landscape screens get a landscape grid
+  G = makeGame(c, r, cfg.slots);
+  busy = false; fx.particles = []; fx.flashes = []; fx.bumps.clear(); fx.shakes.clear();
+  cursor = Math.floor(G.o.length / 2);
+  try { localStorage.setItem('atoms-cfg', JSON.stringify(cfg)); } catch {}
+  for (const k in sprites) delete sprites[k];
+  fit(); updateHud(); maybeCpu();
+}
+
+$('newBtn').onclick = () => { renderSetup(); openSheet('setup'); };
+$('setupCancel').onclick = () => G ? closeSheet('setup') : null;
+$('startBtn').onclick = () => { if (cfg.slots.filter(s => s !== 'off').length < 2) return; closeSheet('setup'); startGame(); };
+$('aboutBtn').onclick = () => openSheet('about');
+$('aboutClose').onclick = () => closeSheet('about');
+$('rematchBtn').onclick = () => { closeSheet('result'); startGame(); };
+$('resultSetup').onclick = () => { closeSheet('result'); renderSetup(); openSheet('setup'); };
+$('soundBtn').onclick = () => {
+  sound = !sound; $('soundBtn').setAttribute('aria-pressed', sound);
+  $('soundBtn').textContent = sound ? 'Sound' : 'Muted';
+  try { localStorage.setItem('atoms-sound', sound ? '1' : '0'); } catch {}
+};
+
+let lastDpr = window.devicePixelRatio;
+new ResizeObserver(() => {
+  if (window.devicePixelRatio !== lastDpr) { lastDpr = window.devicePixelRatio; for (const k in sprites) delete sprites[k]; }
+  fit();
+}).observe($('stage'));
+
+/* ---------- boot ---------- */
+function start(data) {
+  try { const s = JSON.parse(localStorage.getItem('atoms-cfg')); if (s && Array.isArray(s.slots) && SIZES[s.size]) cfg = s; } catch {}
+  try { if (localStorage.getItem('atoms-sound') === '0') { sound = false; $('soundBtn').textContent = 'Muted'; $('soundBtn').setAttribute('aria-pressed', 'false'); } } catch {}
+  if (data && data.G && data.cfg) {
+    cfg = data.cfg; G = data.G; fit(); updateHud();
+    if (G.k.some((v, i) => v >= G.cap[i])) { busy = true; resolveChain().then(() => { afterMove(); busy = false; maybeCpu(); }); }
+    else maybeCpu();
+  } else {
+    startGame();
+  }
+  requestAnimationFrame(loop);
+}
+window.claude?.hot?.snapshot?.(() => ({ cfg, G }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
