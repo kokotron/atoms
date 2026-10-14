@@ -2,7 +2,29 @@
 
 A browser remake of the classic chain-reaction strategy game *Atoms*, made for phones in portrait mode as well as desktop screens.
 
-It's a single file. Open `index.html` in any modern browser to play. Nothing needs installing or building.
+To play on one device, open `index.html` in any modern browser. Nothing needs installing or building.
+
+## Playing across computers
+
+To play with people on other computers on the same network, run the included server. It needs [Node.js](https://nodejs.org/) 18 or newer and has no other dependencies.
+
+```bash
+node server.js
+```
+
+It prints the addresses to use, for example `http://192.168.1.20:8080`. Set the `PORT` environment variable to use a different port.
+
+1. Open the game from that address and choose **New game → Network**.
+2. Set your own colours to **You** and the rest to **CPU**, then press **Start & invite**.
+3. Send the link it shows. Anyone who opens it picks a CPU colour to take over, or watches.
+
+Other notes:
+
+- Players can tap the colour chips at any time to take a free seat or hand theirs back to the CPU.
+- If a player is offline for 30 seconds, the CPU takes over their colour until someone takes the seat again.
+- Only the host can start a rematch.
+- Games are kept in memory, so restarting the server ends them.
+- The first time you run the server, Windows may ask whether Node.js may accept connections on your network. Allow it for private networks, or other computers can't connect.
 
 ## How to play
 

@@ -60,15 +60,19 @@ h1 span { color: var(--turn); transition: color .4s; }
 .chip {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 10px 6px 8px; border-radius: 999px;
-  background: var(--bench); border: 1px solid transparent;
-  font-size: .78rem; font-variant-numeric: tabular-nums;
+  background: var(--bench); border: 1px solid transparent; color: var(--text);
+  font: .78rem var(--mono); font-variant-numeric: tabular-nums;
   transition: border-color .3s, opacity .3s, transform .3s;
 }
+button.chip { cursor: pointer; }
 .chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
 .chip.on { border-color: var(--c); transform: translateY(-1px); }
 .chip.out { opacity: .35; text-decoration: line-through; }
 .chip b { font-weight: 600; }
 .chip small { color: var(--muted); font-size: .7rem; }
+.chip.off small::after { content: " · offline"; color: var(--p0); }
+.chip.net { background: none; border: 1px dashed var(--rule); color: var(--muted); }
+.chip.net:hover { color: var(--text); border-color: var(--muted); }
 
 .stage { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
 canvas {
@@ -86,9 +90,16 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
   padding: 10px 18px; font: 600 .8rem var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
   flex-shrink: 0;
 }
-button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
+.primary:disabled { opacity: .4; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
 
-/* Sheets (setup, credits, result) */
+.toast {
+  position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--text); color: var(--ink); padding: 10px 16px; border-radius: 12px;
+  font: 600 .78rem var(--mono); max-width: calc(100% - 48px); z-index: 20; text-align: center;
+}
+
+/* Sheets (setup, credits, result, seats, invite) */
 .veil {
   position: fixed; inset: 0; background: rgba(6, 9, 18, .72); backdrop-filter: blur(6px);
   display: grid; place-items: end center; z-index: 10; padding: 16px;
@@ -105,25 +116,42 @@ button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
 .sheet h2 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; margin: 0; text-wrap: balance; }
 .sheet h3 { font: 600 .7rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
 .sheet p { margin: 0; line-height: 1.55; font-size: .84rem; color: #c9d0e2; }
+.sheet p.hint { font-size: .76rem; color: var(--muted); }
 .sheet a { color: var(--p1); }
 .slot { display: flex; align-items: center; gap: 10px; }
 .slot i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); flex-shrink: 0; }
-.slot span { flex: 1; font-size: .84rem; }
-.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
+.slot span { flex: 1; font-size: .84rem; min-width: 0; }
+.slot span small { display: block; color: var(--muted); font-size: .72rem; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; align-self: flex-start; }
 .seg button {
   background: none; border: 0; color: var(--muted); padding: 7px 12px; cursor: pointer;
   font: 600 .72rem var(--mono); letter-spacing: .05em; text-transform: uppercase;
 }
 .seg button[aria-pressed="true"] { background: var(--rule); color: var(--text); }
-.rules { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .8rem; color: #c9d0e2; }
+.seg button:disabled { opacity: .35; cursor: default; }
+.small {
+  background: none; border: 1px solid var(--rule); color: var(--text); border-radius: 999px; padding: 7px 12px; cursor: pointer;
+  font: 600 .72rem var(--mono); letter-spacing: .05em; text-transform: uppercase; flex-shrink: 0;
+}
+.small.take { background: var(--c); border-color: var(--c); color: var(--ink); }
+.small:disabled { opacity: .4; cursor: default; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field input {
+  background: var(--ink); border: 1px solid var(--rule); border-radius: 10px; color: var(--text);
+  font: .9rem var(--mono); padding: 10px 12px;
+}
+.linkbox {
+  display: block; background: var(--ink); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 12px; font: 600 .9rem var(--mono); color: var(--text); word-break: break-all; user-select: all;
+}
+.rules { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: .8rem; color: #c9d0e2; margin: 0; }
 .rules dt { color: var(--muted); }
 .rules dd { margin: 0; }
 .credit { border-left: 2px solid var(--c); padding-left: 12px; display: flex; flex-direction: column; gap: 4px; }
 .credit strong { font-family: var(--display); font-size: 1.05rem; font-weight: 800; }
-.row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
 .ghost { background: none; border: 1px solid var(--rule); color: var(--text); border-radius: 999px; padding: 10px 18px; font: 600 .8rem var(--mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
 .winner { font-family: var(--display); font-weight: 800; font-size: 2.4rem; line-height: 1; color: var(--turn); margin: 0; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 @media (max-width: 380px) { h1 { font-size: 1.5rem; } .chip { font-size: .72rem; } }
 @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
@@ -148,10 +176,21 @@ button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
     <button class="primary" id="newBtn">New game</button>
   </footer>
 </div>
+<div class="toast" id="toast" role="status" hidden></div>
 
 <div class="veil" id="setup" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
     <h2 id="setupTitle">New reaction</h2>
+    <h3>Play on</h3>
+    <div class="seg" id="where" role="group" aria-label="Where to play">
+      <button data-where="local" aria-pressed="true">This device</button>
+      <button data-where="net" aria-pressed="false">Network</button>
+    </div>
+    <p class="hint" id="whereHint"></p>
+    <div class="field" id="hostNameField" hidden>
+      <h3><label for="hostName">Your name</label></h3>
+      <input id="hostName" maxlength="16" autocomplete="nickname" placeholder="Host">
+    </div>
     <h3>Players</h3>
     <div id="slots" style="display:flex;flex-direction:column;gap:10px"></div>
     <h3>Grid</h3>
@@ -166,6 +205,33 @@ button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
     <div class="row">
       <button class="ghost" id="setupCancel">Cancel</button>
       <button class="primary" id="startBtn">Start</button>
+    </div>
+  </div>
+</div>
+
+<div class="veil" id="seats" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="seatsTitle">
+    <h2 id="seatsTitle">Join the game</h2>
+    <p id="seatsIntro">Pick a colour to take over from the CPU, or just watch.</p>
+    <div class="field">
+      <h3><label for="joinName">Your name</label></h3>
+      <input id="joinName" maxlength="16" autocomplete="nickname" placeholder="Guest">
+    </div>
+    <h3>Seats</h3>
+    <div id="seatList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="row"><button class="primary" id="seatsDone">Watch</button></div>
+  </div>
+</div>
+
+<div class="veil" id="invite" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
+    <h2 id="inviteTitle">Invite players</h2>
+    <p>Send this link to anyone on your network. They can take any CPU seat or watch.</p>
+    <code class="linkbox" id="inviteLink"></code>
+    <p class="hint" id="inviteAlt" hidden></p>
+    <div class="row">
+      <button class="ghost" id="inviteCopy">Copy link</button>
+      <button class="primary" id="inviteClose">Done</button>
     </div>
   </div>
 </div>
@@ -210,218 +276,324 @@ button:focus-visible { outline: 2px solid var(--turn); outline-offset: 2px; }
   </div>
 </div>
 
+<script src="atoms-core.js"></script>
 <script>
 (() => {
 'use strict';
+const Core = window.AtomsCore;
+const { NAMES, SIZES } = Core;
 const css = getComputedStyle(document.documentElement);
 const COLORS = [0,1,2,3].map(i => css.getPropertyValue('--p' + i).trim());
-const NAMES = ['Coral', 'Teal', 'Amber', 'Lilac'];
-const SIZES = { '5×8': [5, 8], '6×9': [6, 9], '7×11': [7, 11] };
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const $ = id => document.getElementById(id);
 const canvas = $('board'), ctx = canvas.getContext('2d');
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
 
-let cfg = { slots: ['human', 'cpu', 'off', 'off'], size: '6×9' };
-let G = null;           // game state
-let busy = false;       // a move is resolving
+let cfg = { slots: ['human', 'cpu', 'off', 'off'], size: '6×9', where: 'local' };
+let G = null;           // game state (same shape as Core.makeGame)
+let busy = false;       // a move is animating
 let sound = true;
 let cursor = 0;         // keyboard cursor
 let showCursor = false;
 let geo = { s: 40, w: 0, h: 0, dpr: 1 };
 const fx = { particles: [], flashes: [], bumps: new Map(), shakes: new Map() };
 
-/* ---------- rules ---------- */
-function makeGame(cols, rows, slots) {
-  const players = [];
-  slots.forEach((k, i) => { if (k !== 'off') players.push({ c: i, kind: k, alive: true, moved: false }); });
-  const n = cols * rows, nb = [], cap = [];
-  for (let i = 0; i < n; i++) {
-    const x = i % cols, y = (i / cols) | 0, a = [];
-    if (y > 0) a.push(i - cols);
-    if (x < cols - 1) a.push(i + 1);
-    if (y < rows - 1) a.push(i + cols);
-    if (x > 0) a.push(i - 1);
-    nb.push(a); cap.push(a.length);
+// Network play. server: what /api/ping said (null when there is no Atoms server, e.g. opened as a file).
+let server = null;
+let net = null;         // { room, es, seats, host, watchers, queue, running, sending, asked, resultSeq }
+const clientId = (() => {
+  let id = store.get('atoms-client');
+  if (!id || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+    const b = new Uint8Array(18); crypto.getRandomValues(b);
+    id = btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    store.set('atoms-client', id);
   }
-  return { cols, rows, nb, cap, o: new Array(n).fill(-1), k: new Array(n).fill(0), players, turn: 0, over: false, moves: 0 };
-}
+  return id;
+})();
+const myName = () => store.get('atoms-name') || '';
+
 const cur = () => G.players[G.turn];
-const legal = (g, i, p) => g.o[i] === -1 || g.o[i] === p;
-const allMoved = g => g.players.every(p => p.moved || !p.alive);
-
-function owners(g, o) {
-  const set = new Set(); for (const v of o) if (v >= 0) set.add(v); return set;
+const seatOf = c => net && net.seats ? net.seats[c] : null;
+function canMove() {
+  if (!G || G.over || busy) return false;
+  if (net) return !net.sending && !!(seatOf(cur().c) || {}).mine;
+  return cur().kind === 'human';
 }
 
-// Synchronous resolve used by the CPU's look-ahead.
-function simulate(g, o, k, i, p, everyoneMoved) {
-  o[i] = p; k[i]++;
-  let queue = k[i] >= g.cap[i] ? [i] : [], guard = 0;
-  while (queue.length && guard++ < 300) {
-    const next = [];
-    for (const u of queue) {
-      if (k[u] < g.cap[u]) continue;
-      const own = o[u];
-      k[u] -= g.cap[u]; if (k[u] === 0) o[u] = -1;
-      for (const v of g.nb[u]) { k[v]++; o[v] = own; if (k[v] >= g.cap[v]) next.push(v); }
-      if (k[u] >= g.cap[u]) next.push(u);
-    }
-    if (everyoneMoved && owners(g, o).size <= 1) break;
-    queue = next;
-  }
-}
-
-/* ---------- CPU ---------- */
-function evaluate(g, o, k, me, everyoneMoved) {
-  let mine = 0, theirs = 0, score = 0;
-  const live = new Set();
-  for (let i = 0; i < o.length; i++) {
-    if (o[i] === -1) continue;
-    live.add(o[i]);
-    if (o[i] !== me) { theirs += k[i]; continue; }
-    mine += k[i];
-    let threatened = false;
-    for (const v of g.nb[i]) if (o[v] !== -1 && o[v] !== me && k[v] === g.cap[v] - 1) { threatened = true; score -= 5 - g.cap[i]; }
-    if (!threatened) {
-      if (g.cap[i] === 2) score += 3; else if (g.cap[i] === 3) score += 2;
-      if (k[i] === g.cap[i] - 1) score += 2;
-    }
-  }
-  if (mine === 0 && everyoneMoved) return -1e6;
-  if (everyoneMoved && live.size === 1 && live.has(me)) return 1e6;
-  return score + mine - theirs * 0.8;
-}
-
-function cpuMove() {
-  const me = cur().c, n = G.o.length;
-  const moved = G.players.every(p => p.moved || p === cur() || !p.alive);
-  const nextP = G.players[nextAliveIndex(G.turn)];
-  let best = -Infinity, pick = [];
-  for (let i = 0; i < n; i++) {
-    if (!legal(G, i, me)) continue;
-    const o = G.o.slice(), k = G.k.slice();
-    simulate(G, o, k, i, me, moved);
-    let s = evaluate(G, o, k, me, moved);
-    if (s < 1e6 && nextP && nextP.c !== me) {
-      // assume the next player replies with whatever hurts us most
-      let worst = Infinity;
-      const nextMoved = moved && nextP.moved;
-      for (let j = 0; j < n; j++) {
-        if (o[j] !== -1 && o[j] !== nextP.c) continue;
-        const o2 = o.slice(), k2 = k.slice();
-        simulate(G, o2, k2, j, nextP.c, true);
-        const s2 = evaluate(G, o2, k2, me, nextMoved || true);
-        if (s2 < worst) worst = s2;
-      }
-      if (worst !== Infinity) s = worst * 0.85 + s * 0.15;
-    }
-    s += Math.random() * 0.5;
-    if (s > best + 1e-9) { best = s; pick = [i]; } else if (Math.abs(s - best) < 1e-9) pick.push(i);
-  }
-  return pick[(Math.random() * pick.length) | 0];
-}
-
-/* ---------- turn flow ---------- */
-function nextAliveIndex(t) {
-  for (let s = 1; s <= G.players.length; s++) {
-    const j = (t + s) % G.players.length;
-    if (G.players[j].alive) return j;
-  }
-  return t;
-}
-
+/* ---------- local turn flow ---------- */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function play(i) {
-  if (busy || G.over) return;
+function tryPlay(i) {
+  if (!canMove()) return;
   const p = cur();
-  if (!legal(G, i, p.c)) { fx.shakes.set(i, performance.now()); blip(140, .04); return; }
+  if (!Core.legal(G, i, p.c)) { fx.shakes.set(i, performance.now()); blip(140, .04); return; }
+  if (net) sendMove(i); else playLocal(i);
+}
+
+async function playLocal(i) {
   busy = true;
-  p.moved = true; G.moves++;
-  G.o[i] = p.c; G.k[i]++;
-  fx.bumps.set(i, performance.now());
-  blip(520 + G.k[i] * 90, .06);
-  await resolveChain();
-  afterMove();
+  await animateMove(i);
+  const winner = Core.finishTurn(G);
+  G.seq++;
   busy = false;
-  render();
+  updateHud();
+  if (winner) showResult(winner);
   maybeCpu();
 }
 
-async function resolveChain() {
-  let wave = 0;
-  while (true) {
-    const hot = [];
-    for (let i = 0; i < G.o.length; i++) if (G.k[i] >= G.cap[i]) hot.push(i);
-    if (!hot.length) break;
-    if (allMoved(G) && owners(G, G.o).size <= 1) break;
-    if (wave > 400) break;
-    const dur = reduced ? 90 : Math.max(130, 300 - wave * 18);
-    const now = performance.now(), arrivals = [];
-    for (const u of hot) {
-      const own = G.o[u];
-      G.k[u] -= G.cap[u]; if (G.k[u] === 0) G.o[u] = -1;
+// Places an atom for the current player and plays the chain out wave by wave.
+// Mirrors Core.applyMove exactly, so the network board ends up identical to the server's.
+async function animateMove(i) {
+  Core.place(G, i);
+  fx.bumps.set(i, performance.now());
+  blip(520 + G.k[i] * 90, .06);
+  let wave = 0, burst;
+  while (wave <= 400 && (burst = Core.explodeWave(G))) {
+    const dur = Core.waveDuration(wave, reduced);
+    const now = performance.now();
+    for (const [u, own] of burst) {
       fx.flashes.push({ i: u, c: own, t0: now, d: dur * 1.6 });
-      for (const v of G.nb[u]) {
-        fx.particles.push({ a: u, b: v, c: own, t0: now, d: dur });
-        arrivals.push([v, own]);
-      }
+      for (const v of G.nb[u]) fx.particles.push({ a: u, b: v, c: own, t0: now, d: dur });
     }
-    boom(wave, hot.length);
+    boom(wave, burst.length);
     await sleep(dur);
+    Core.landWave(G, burst);
     const t = performance.now();
-    for (const [v, own] of arrivals) { G.k[v]++; G.o[v] = own; fx.bumps.set(v, t); }
+    for (const [u] of burst) for (const v of G.nb[u]) fx.bumps.set(v, t);
     updateHud();
     wave++;
   }
 }
 
-function afterMove() {
-  if (allMoved(G)) {
-    for (const p of G.players) if (p.alive && p.moved && !G.o.includes(p.c)) p.alive = false;
-  }
-  const alive = G.players.filter(p => p.alive);
-  if (alive.length === 1 && allMoved(G)) {
-    G.over = true; G.turn = G.players.indexOf(alive[0]);
-    updateHud(); showResult(alive[0]); return;
-  }
-  G.turn = nextAliveIndex(G.turn);
-  updateHud();
-}
-
 async function maybeCpu() {
-  if (!G || G.over || busy || cur().kind !== 'cpu') return;
+  if (net || !G || G.over || busy || cur().kind !== 'cpu') return;
   busy = true;
   const g = G;
   await sleep(reduced ? 150 : 420);
   if (g !== G) return;
-  const i = cpuMove();
+  const i = Core.cpuMove(G);
   busy = false;
-  if (i !== undefined) play(i);
+  if (i !== undefined) playLocal(i);
 }
 
+/* ---------- network ---------- */
+async function apiPost(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ client: clientId, ...body }) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'The server did not answer.');
+  return data;
+}
+
+async function detectServer() {
+  if (!/^https?:$/.test(location.protocol)) return null;
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 2500);
+    const r = await fetch('api/ping', { signal: ctl.signal, cache: 'no-store' });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d && d.ok ? d : null;
+  } catch { return null; }
+}
+
+function connectRoom(id) {
+  leaveRoom(false);
+  net = { room: id, seats: null, host: false, watchers: 0, queue: [], running: false, sending: false, asked: false, resultSeq: -1, fails: 0 };
+  const es = new EventSource(`api/rooms/${encodeURIComponent(id)}/events?client=${encodeURIComponent(clientId)}`);
+  net.es = es;
+  const on = type => e => { if (net && net.es === es) { net.fails = 0; net.queue.push({ type, d: JSON.parse(e.data) }); drain(); } };
+  es.addEventListener('state', on('state'));
+  es.addEventListener('move', on('move'));
+  es.onerror = async () => {
+    if (!net || net.es !== es) return;
+    net.fails++;
+    setStatus('Connection lost. Reconnecting…');
+    if (net.fails >= 2) {
+      const r = await fetch(`api/rooms/${encodeURIComponent(id)}`, { cache: 'no-store' }).catch(() => null);
+      if (r && r.status === 404 && net && net.es === es) {
+        toast('This game no longer exists. Starting a game on this device.');
+        leaveRoom(true); startLocal();
+      }
+    }
+  };
+}
+
+function leaveRoom(clearUrl) {
+  if (net && net.es) net.es.close();
+  net = null;
+  if (clearUrl) history.replaceState(null, '', location.pathname);
+}
+
+async function drain() {
+  if (!net || net.running) return;
+  net.running = true;
+  const mine = net;
+  while (net === mine && mine.queue.length) {
+    const { type, d } = mine.queue.shift();
+    const sameBoard = G && G.cols === d.g.cols && G.rows === d.g.rows;
+    if (type === 'move' && sameBoard && G.seq === d.g.seq - 1) {
+      busy = true;
+      await animateMove(d.cell);
+      busy = false;
+    } else if (!sameBoard || d.fresh || d.g.seq !== (G && G.seq)) {
+      fx.particles = []; fx.flashes = []; fx.bumps.clear(); fx.shakes.clear();
+    }
+    if (net !== mine) break;
+    const dims = !sameBoard;
+    G = d.g;
+    mine.seats = d.seats; mine.host = d.host; mine.watchers = d.watchers;
+    if (type === 'move' && d.player !== undefined && seatOf(d.player) && seatOf(d.player).mine) mine.sending = false;
+    if (d.fresh) { $('result').hidden = true; mine.resultSeq = -1; }
+    if (dims) { for (const k in sprites) delete sprites[k]; fit(); cursor = Math.floor(G.o.length / 2); }
+    updateHud();
+    if (!mine.asked) {
+      mine.asked = true;
+      if (!mine.seats.some(s => s.mine)) openSeats();
+    }
+    if (!$('seats').hidden) renderSeats();
+    if (G.over && mine.resultSeq !== G.seq) { mine.resultSeq = G.seq; showResult(G.players[G.turn]); }
+  }
+  mine.running = false;
+}
+
+async function sendMove(i) {
+  net.sending = true;
+  try { await apiPost(`api/rooms/${net.room}/move`, { cell: i, seq: G.seq }); }
+  catch (e) { if (net) net.sending = false; toast(e.message); }
+}
+
+async function startNetGame() {
+  const name = $('hostName').value.trim();
+  store.set('atoms-name', name);
+  const st = $('stage').getBoundingClientRect();
+  try {
+    const { room } = await apiPost('api/rooms', { name, slots: cfg.slots, size: cfg.size, landscape: st.width > st.height * 1.15 });
+    history.replaceState(null, '', `${location.pathname}?room=${room}`);
+    connectRoom(room);
+    net.asked = true;
+    openSheet('invite');
+    renderInvite();
+  } catch (e) { toast(e.message); }
+}
+
+function inviteUrl() {
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const host = local && server && server.addresses.length ? server.addresses[0] + (location.port ? ':' + location.port : '') : location.host;
+  return `${location.protocol}//${host}${location.pathname}?room=${net.room}`;
+}
+function renderInvite() {
+  if (!net) return;
+  $('inviteLink').textContent = inviteUrl();
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const alts = local && server ? server.addresses.slice(1) : [];
+  $('inviteAlt').hidden = !alts.length;
+  $('inviteAlt').textContent = alts.length ? `If that link doesn't open for them, this computer is also reachable at ${alts.join(', ')}.` : '';
+}
+
+/* ---------- seats sheet ---------- */
+function openSeats() {
+  $('joinName').value = myName();
+  renderSeats();
+  openSheet('seats');
+}
+function renderSeats() {
+  if (!net || !net.seats) return;
+  const mineAny = net.seats.some(s => s.mine);
+  $('seatsTitle').textContent = mineAny ? 'Seats' : 'Join the game';
+  $('seatsIntro').textContent = mineAny ? 'You can take another free seat or hand yours back to the CPU.' : 'Pick a colour to take over from the CPU, or just watch.';
+  $('seatsDone').textContent = mineAny ? 'Done' : 'Watch';
+  $('seatList').innerHTML = net.seats.map((s, c) => {
+    if (s.ctrl === 'off') return '';
+    const who = s.ctrl === 'cpu' ? 'CPU' : s.mine ? `${esc(s.name)} (you)` : `${esc(s.name)}${s.isHost ? ' · host' : ''}${s.online ? '' : ' · offline'}`;
+    const btn = s.ctrl === 'cpu' ? `<button class="small take" data-take="${c}">Take seat</button>`
+      : s.mine ? `<button class="small" data-leave="${c}">Leave</button>`
+      : `<button class="small" disabled>Taken</button>`;
+    return `<div class="slot" style="--c:${COLORS[c]}"><i></i><span>${NAMES[c]}<small>${who}</small></span>${btn}</div>`;
+  }).join('');
+}
+$('seatList').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b || !net) return;
+  const name = $('joinName').value.trim();
+  store.set('atoms-name', name);
+  b.disabled = true;
+  try {
+    if (b.dataset.take !== undefined) { await apiPost(`api/rooms/${net.room}/join`, { seat: +b.dataset.take, name }); closeSheet('seats'); }
+    else if (b.dataset.leave !== undefined) await apiPost(`api/rooms/${net.room}/leave`, {});
+  } catch (err) { toast(err.message); b.disabled = false; }
+});
+$('joinName').addEventListener('change', () => {
+  const name = $('joinName').value.trim();
+  store.set('atoms-name', name);
+  if (net && net.seats && net.seats.some(s => s.mine)) apiPost(`api/rooms/${net.room}/name`, { name }).catch(() => {});
+});
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
 /* ---------- HUD ---------- */
+function setStatus(html) { $('status').innerHTML = html; }
+let toastTimer = null;
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 3200);
+}
+
+function who(p) {
+  if (!net) return p.kind === 'cpu' ? 'CPU' : 'You';
+  const s = seatOf(p.c);
+  if (!s || s.ctrl === 'cpu') return 'CPU';
+  return s.mine ? 'You' : esc(s.name);
+}
+
 function updateHud() {
+  if (!G) return;
   const p = cur();
   document.documentElement.style.setProperty('--turn', COLORS[p.c]);
   const counts = G.players.map(pl => G.k.reduce((s, v, i) => s + (G.o[i] === pl.c ? v : 0), 0));
-  $('players').innerHTML = G.players.map((pl, j) => `
-    <div class="chip ${j === G.turn && !G.over ? 'on' : ''} ${pl.alive ? '' : 'out'}" style="--c:${COLORS[pl.c]}">
-      <i></i><b>${NAMES[pl.c]}</b><small>${pl.kind === 'cpu' ? 'CPU' : 'You'} · ${counts[j]}</small>
-    </div>`).join('');
-  $('status').innerHTML = G.over ? `<b>${NAMES[p.c]}</b> controls the grid.`
-    : p.kind === 'cpu' ? `<b>${NAMES[p.c]}</b> is thinking…`
-    : `<b>${NAMES[p.c]}</b> to play · move ${G.moves + 1}`;
+  const tag = net ? 'button' : 'div';
+  let html = G.players.map((pl, j) => {
+    const s = seatOf(pl.c);
+    const offline = s && s.ctrl === 'human' && !s.mine && !s.online;
+    return `<${tag} class="chip ${j === G.turn && !G.over ? 'on' : ''} ${pl.alive ? '' : 'out'} ${offline ? 'off' : ''}" style="--c:${COLORS[pl.c]}" ${net ? 'data-seats' : ''}>
+      <i></i><b>${NAMES[pl.c]}</b><small>${who(pl)} · ${counts[j]}</small></${tag}>`;
+  }).join('');
+  if (net) html += `<button class="chip net" id="inviteChip">Invite${net.watchers ? ` · ${net.watchers} watching` : ''}</button>`;
+  $('players').innerHTML = html;
+
+  const mineSeat = net && net.seats && net.seats.some(s => s.mine);
+  $('newBtn').textContent = net && !net.host ? (mineSeat ? 'Seats' : 'Join') : 'New game';
+
+  const name = `<b>${NAMES[p.c]}</b>`;
+  if (G.over) return setStatus(`${name} controls the grid.`);
+  if (!net) return setStatus(p.kind === 'cpu' ? `${name} is thinking…` : `${name} to play · move ${G.moves + 1}`);
+  const s = seatOf(p.c) || {};
+  if (s.mine) setStatus(`Your turn as ${name} · move ${G.moves + 1}`);
+  else if (s.ctrl === 'human') setStatus(`${esc(s.name)} (${name}) is playing…${mineSeat ? '' : ' · watching'}`);
+  else setStatus(`${name} (CPU) is thinking…${mineSeat ? '' : ' · watching'}`);
 }
+$('players').addEventListener('click', e => {
+  if (!net) return;
+  if (e.target.closest('#inviteChip')) { renderInvite(); openSheet('invite'); }
+  else if (e.target.closest('[data-seats]')) openSeats();
+});
 
 function showResult(p) {
   setTimeout(() => {
+    if (!G || !G.over) return;
     $('winText').textContent = `${NAMES[p.c]} wins`;
     $('winText').style.color = COLORS[p.c];
-    const humans = G.players.filter(x => x.kind === 'human').length;
-    $('winSub').textContent = p.kind === 'cpu' && humans ? `The CPU took the grid in ${G.moves} moves. Try forcing it into the middle.`
-      : `Last colour standing after ${G.moves} moves.`;
+    const s = seatOf(p.c);
+    let sub;
+    if (net) sub = s && s.mine ? `You took the grid in ${G.moves} moves.` : s && s.ctrl === 'human' ? `${s.name} took the grid in ${G.moves} moves.` : `The CPU took the grid in ${G.moves} moves.`;
+    else {
+      const humans = G.players.filter(x => x.kind === 'human').length;
+      sub = p.kind === 'cpu' && humans ? `The CPU took the grid in ${G.moves} moves. Try forcing it into the middle.` : `Last colour standing after ${G.moves} moves.`;
+    }
+    if (net && !net.host) sub += ' The host can start a rematch.';
+    $('winSub').textContent = sub;
+    $('rematchBtn').hidden = !!(net && !net.host);
+    $('resultSetup').textContent = net && !net.host ? 'Seats' : 'Change players';
     openSheet('result');
   }, reduced ? 100 : 700);
 }
@@ -489,7 +661,7 @@ function draw(now) {
   for (let c = 1; c < G.cols; c++) { ctx.moveTo(c * s + .5, 0); ctx.lineTo(c * s + .5, geo.h); }
   for (let r = 1; r < G.rows; r++) { ctx.moveTo(0, r * s + .5); ctx.lineTo(geo.w, r * s + .5); }
   ctx.stroke();
-  // capacity dots: tiny marks in each empty cell corner showing how many it holds
+  // capacity dots: how many atoms an empty square holds before it explodes
   ctx.fillStyle = 'rgba(141,151,179,.28)';
   for (let i = 0; i < G.o.length; i++) {
     if (G.o[i] !== -1) continue;
@@ -514,7 +686,6 @@ function draw(now) {
     const n = G.k[i]; if (!n || G.o[i] < 0) continue;
     let [cx, cy] = center(i);
     const cap = G.cap[i], crit = n >= cap - 1;
-    const sh = fx.shakes.get(i);
     const bt = fx.bumps.get(i); let sc = 1;
     if (bt !== undefined) { const t = (now - bt) / 260; if (t >= 1) fx.bumps.delete(i); else sc = 1 + .35 * Math.sin(t * Math.PI) * (1 - t); }
     if (crit && !reduced) { cx += Math.sin(now / 37 + i * 3) * s * .015; cy += Math.cos(now / 41 + i) * s * .015; }
@@ -557,7 +728,6 @@ function draw(now) {
   }
 }
 
-function render() { if (G) draw(performance.now()); }
 function loop(now) { if (G) draw(now); requestAnimationFrame(loop); }
 
 /* ---------- sound ---------- */
@@ -588,12 +758,12 @@ function boom(wave, count) {
 
 /* ---------- input ---------- */
 canvas.addEventListener('pointerup', e => {
-  if (!G || G.over || busy || cur().kind !== 'human') return;
+  if (!canMove()) return;
   const r = canvas.getBoundingClientRect();
   const x = Math.floor((e.clientX - r.left) / geo.s), y = Math.floor((e.clientY - r.top) / geo.s);
   if (x < 0 || y < 0 || x >= G.cols || y >= G.rows) return;
   showCursor = false; cursor = y * G.cols + x;
-  play(cursor);
+  tryPlay(cursor);
 });
 canvas.addEventListener('keydown', e => {
   if (!G) return;
@@ -605,27 +775,42 @@ canvas.addEventListener('keydown', e => {
     cursor = ny * G.cols + nx;
   } else if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault(); showCursor = true;
-    if (!G.over && !busy && cur().kind === 'human') play(cursor);
+    tryPlay(cursor);
   }
 });
 
 /* ---------- sheets ---------- */
-function openSheet(id) { $(id).hidden = false; const b = $(id).querySelector('.primary'); b && b.focus(); }
+function openSheet(id) { $(id).hidden = false; const b = $(id).querySelector('.primary:not([hidden])'); b && b.focus(); }
 function closeSheet(id) { $(id).hidden = true; canvas.focus({ preventScroll: true }); }
-document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && (G || v.id !== 'setup')) closeSheet(v.id); }));
-document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.veil:not([hidden])').forEach(v => G && closeSheet(v.id)); });
+document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && G) closeSheet(v.id); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && G) document.querySelectorAll('.veil:not([hidden])').forEach(v => closeSheet(v.id)); });
 
 function renderSetup() {
+  const isNet = cfg.where === 'net' && !!server;
+  $('where').querySelectorAll('button').forEach(b => {
+    b.setAttribute('aria-pressed', (b.dataset.where === 'net') === isNet);
+    if (b.dataset.where === 'net') b.disabled = !server;
+  });
+  $('whereHint').textContent = !server
+    ? 'To play across computers, start the game with server.js and open it from that address.'
+    : isNet ? 'You get a link to send. Anyone who opens it can take over a CPU seat or watch.'
+    : 'Everyone plays on this screen, taking turns.';
+  $('hostNameField').hidden = !isNet;
+  $('hostName').value = myName();
   $('slots').innerHTML = cfg.slots.map((k, i) => `
     <div class="slot" style="--c:${COLORS[i]}"><i></i><span>${NAMES[i]}</span>
       <div class="seg" role="group" aria-label="${NAMES[i]}">
-        ${['off', 'human', 'cpu'].map(v => `<button data-slot="${i}" data-v="${v}" aria-pressed="${k === v}">${v === 'human' ? 'Human' : v === 'cpu' ? 'CPU' : 'Off'}</button>`).join('')}
+        ${['off', 'human', 'cpu'].map(v => `<button data-slot="${i}" data-v="${v}" aria-pressed="${k === v}">${v === 'human' ? (isNet ? 'You' : 'Human') : v === 'cpu' ? 'CPU' : 'Off'}</button>`).join('')}
       </div></div>`).join('');
   $('sizes').innerHTML = Object.keys(SIZES).map(k => `<button data-size="${k}" aria-pressed="${cfg.size === k}">${k}</button>`).join('');
   const on = cfg.slots.filter(s => s !== 'off').length;
-  $('startBtn').disabled = on < 2; $('startBtn').style.opacity = on < 2 ? .4 : 1;
-  $('startBtn').textContent = on < 2 ? 'Need 2 players' : 'Start';
+  $('startBtn').disabled = on < 2;
+  $('startBtn').textContent = on < 2 ? 'Need 2 players' : isNet ? 'Start & invite' : 'Start';
 }
+$('where').addEventListener('click', e => {
+  const b = e.target.closest('button[data-where]'); if (!b || b.disabled) return;
+  cfg.where = b.dataset.where; renderSetup();
+});
 $('slots').addEventListener('click', e => {
   const b = e.target.closest('button[data-slot]'); if (!b) return;
   cfg.slots[+b.dataset.slot] = b.dataset.v; renderSetup();
@@ -635,29 +820,56 @@ $('sizes').addEventListener('click', e => {
   cfg.size = b.dataset.size; renderSetup();
 });
 
-function startGame() {
+function startLocal() {
   let [c, r] = SIZES[cfg.size];
   const st = $('stage').getBoundingClientRect();
   if (st.width > st.height * 1.15) [c, r] = [r, c];   // landscape screens get a landscape grid
-  G = makeGame(c, r, cfg.slots);
+  G = Core.makeGame(c, r, cfg.slots);
   busy = false; fx.particles = []; fx.flashes = []; fx.bumps.clear(); fx.shakes.clear();
   cursor = Math.floor(G.o.length / 2);
-  try { localStorage.setItem('atoms-cfg', JSON.stringify(cfg)); } catch {}
   for (const k in sprites) delete sprites[k];
   fit(); updateHud(); maybeCpu();
 }
 
-$('newBtn').onclick = () => { renderSetup(); openSheet('setup'); };
+function saveCfg() { store.set('atoms-cfg', JSON.stringify(cfg)); }
+
+$('newBtn').onclick = () => {
+  if (net && !net.host) return openSeats();
+  renderSetup(); openSheet('setup');
+};
 $('setupCancel').onclick = () => G ? closeSheet('setup') : null;
-$('startBtn').onclick = () => { if (cfg.slots.filter(s => s !== 'off').length < 2) return; closeSheet('setup'); startGame(); };
+$('startBtn').onclick = () => {
+  if (cfg.slots.filter(s => s !== 'off').length < 2) return;
+  saveCfg(); closeSheet('setup');
+  if (cfg.where === 'net' && server) startNetGame();
+  else { leaveRoom(true); startLocal(); }
+};
 $('aboutBtn').onclick = () => openSheet('about');
 $('aboutClose').onclick = () => closeSheet('about');
-$('rematchBtn').onclick = () => { closeSheet('result'); startGame(); };
-$('resultSetup').onclick = () => { closeSheet('result'); renderSetup(); openSheet('setup'); };
+$('seatsDone').onclick = () => closeSheet('seats');
+$('inviteClose').onclick = () => closeSheet('invite');
+$('inviteCopy').onclick = async () => {
+  const text = $('inviteLink').textContent;
+  try { await navigator.clipboard.writeText(text); toast('Link copied.'); return; } catch {}
+  const range = document.createRange(); range.selectNodeContents($('inviteLink'));
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  try { if (document.execCommand('copy')) { toast('Link copied.'); return; } } catch {}
+  toast('Press Ctrl+C to copy the selected link.');
+};
+$('rematchBtn').onclick = async () => {
+  closeSheet('result');
+  if (net) { try { await apiPost(`api/rooms/${net.room}/rematch`, {}); } catch (e) { toast(e.message); } }
+  else startLocal();
+};
+$('resultSetup').onclick = () => {
+  closeSheet('result');
+  if (net && !net.host) return openSeats();
+  renderSetup(); openSheet('setup');
+};
 $('soundBtn').onclick = () => {
   sound = !sound; $('soundBtn').setAttribute('aria-pressed', sound);
   $('soundBtn').textContent = sound ? 'Sound' : 'Muted';
-  try { localStorage.setItem('atoms-sound', sound ? '1' : '0'); } catch {}
+  store.set('atoms-sound', sound ? '1' : '0');
 };
 
 let lastDpr = window.devicePixelRatio;
@@ -667,19 +879,30 @@ new ResizeObserver(() => {
 }).observe($('stage'));
 
 /* ---------- boot ---------- */
-function start(data) {
-  try { const s = JSON.parse(localStorage.getItem('atoms-cfg')); if (s && Array.isArray(s.slots) && SIZES[s.size]) cfg = s; } catch {}
-  try { if (localStorage.getItem('atoms-sound') === '0') { sound = false; $('soundBtn').textContent = 'Muted'; $('soundBtn').setAttribute('aria-pressed', 'false'); } } catch {}
+async function start(data) {
+  try { const s = JSON.parse(store.get('atoms-cfg')); if (s && Array.isArray(s.slots) && SIZES[s.size]) cfg = { ...cfg, ...s }; } catch {}
+  if (store.get('atoms-sound') === '0') { sound = false; $('soundBtn').textContent = 'Muted'; $('soundBtn').setAttribute('aria-pressed', 'false'); }
+  requestAnimationFrame(loop);
+  const room = new URLSearchParams(location.search).get('room');
+  if (room && /^[a-f0-9]{8}$/.test(room)) {
+    setStatus('Connecting…');
+    server = await detectServer();
+    if (server) return connectRoom(room);
+    toast("Can't reach the game server. Starting a game on this device.");
+    history.replaceState(null, '', location.pathname);
+  }
   if (data && data.G && data.cfg) {
     cfg = data.cfg; G = data.G; fit(); updateHud();
-    if (G.k.some((v, i) => v >= G.cap[i])) { busy = true; resolveChain().then(() => { afterMove(); busy = false; maybeCpu(); }); }
-    else maybeCpu();
+    if (G.k.some((v, i) => v >= G.cap[i])) {
+      busy = true;
+      (async () => { let b; while ((b = Core.explodeWave(G))) { Core.landWave(G, b); } Core.finishTurn(G); busy = false; updateHud(); maybeCpu(); })();
+    } else maybeCpu();
   } else {
-    startGame();
+    startLocal();
   }
-  requestAnimationFrame(loop);
+  if (!server) detectServer().then(s => { server = s; });
 }
-window.claude?.hot?.snapshot?.(() => ({ cfg, G }));
+window.claude?.hot?.snapshot?.(() => (net ? {} : { cfg, G }));
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 })();
 </script>
