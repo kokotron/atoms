@@ -945,15 +945,15 @@ new ResizeObserver(() => {
 
 /* ---------- boot ---------- */
 async function start(data) {
-  try { const s = JSON.parse(store.get('atoms-cfg')); if (s && Array.isArray(s.slots) && SIZES[s.size]) cfg = { ...cfg, ...s }; } catch {}
+  try { const s = JSON.parse(store.get('atoms-cfg')); if (s && Array.isArray(s.slots) && Core.isSize(s.size) && s.slots.length === 4 && s.slots.every(k => ['off', 'human', 'cpu'].includes(k))) cfg = { ...cfg, ...s }; } catch {}
   // older saved setups had one level for every CPU
-  if (!Array.isArray(cfg.levels) || cfg.levels.length !== 4) cfg.levels = new Array(4).fill(LEVELS[cfg.cpu] ? cfg.cpu : 'med');
-  cfg.levels = cfg.levels.map(l => LEVELS[l] ? l : 'med');
+  if (!Array.isArray(cfg.levels) || cfg.levels.length !== 4) cfg.levels = new Array(4).fill(Core.isLevel(cfg.cpu) ? cfg.cpu : 'med');
+  cfg.levels = cfg.levels.map(l => Core.isLevel(l) ? l : 'med');
   delete cfg.cpu;
   if (store.get('atoms-sound') === '0') { sound = false; $('soundBtn').textContent = 'Muted'; $('soundBtn').setAttribute('aria-pressed', 'false'); }
   requestAnimationFrame(loop);
   const room = new URLSearchParams(location.search).get('room');
-  if (room && /^[a-f0-9]{8}$/.test(room)) {
+  if (room && /^[a-f0-9]{24}$/.test(room)) {
     setStatus('Connecting…');
     server = await detectServer();
     if (server) return connectRoom(room);

@@ -12,7 +12,15 @@ To play with people on other computers on the same network, run the included ser
 node server.js
 ```
 
-It prints the addresses to use, for example `http://192.168.1.20:8080`. Set the `PORT` environment variable to use a different port.
+It prints the addresses to use, for example `http://192.168.1.20:8080`.
+
+You can change how it runs with these environment variables:
+
+| Variable | What it does |
+| --- | --- |
+| `PORT` | The port to use. The default is 8080. |
+| `HOST` | Accept connections only on one address, for example `192.168.1.20`. By default the server accepts connections on every network the computer is connected to. |
+| `TLS_CERT`, `TLS_KEY` | Paths to a certificate and its private key, both PEM files. Set both to serve the game over `https`. |
 
 1. Open the game from that address and choose **New game → Network**.
 2. Set your own colours to **You** and the rest to **CPU**, then press **Start & invite**.
@@ -25,6 +33,16 @@ Other notes:
 - Only the host can start a rematch.
 - Games are kept in memory, so restarting the server ends them.
 - The first time you run the server, Windows may ask whether Node.js may accept connections on your network. Allow it for private networks, or other computers can't connect.
+
+### Security
+
+The server is meant for networks you trust, like a home or office network. It has no accounts or passwords.
+
+- **Who can play:** anyone who can reach the server can open the game and start games. A game link contains a long random code, so only people you send the link to can join that game.
+- **Don't expose it to the internet.** Don't run it on public Wi-Fi, and don't open its port on your router. To keep it off other networks the computer is connected to, set `HOST` to your local network address.
+- **Unencrypted by default:** over plain `http`, someone who can watch traffic on your network could see a player's ID and play as them. Use `TLS_CERT` and `TLS_KEY` to encrypt the traffic.
+- **Built-in limits:** each address can start 20 games an hour, send 120 actions a minute and keep 20 games open. The server hosts at most 200 games at once and removes games nobody has had open for 30 minutes. CPU players only move while someone has the game open.
+- **Other websites:** the server refuses requests that come from pages on other websites.
 
 ## How to play
 

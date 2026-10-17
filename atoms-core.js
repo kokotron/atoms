@@ -15,11 +15,16 @@
     high: { label: 'High', name: 'high', about: 'Tests every move against your strongest reply and avoids squares you could blow up. Leave it an opening and it starts a chain.' },
   };
 
+  // Own keys only, so names like "constructor" or "__proto__" never count as a level or size.
+  const has = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+  const isLevel = k => has(LEVELS, k);
+  const isSize = k => has(SIZES, k);
+
   // slots: array of 4 entries, each 'human' | 'cpu' | 'off'; levels: matching array of LEVELS keys for the CPUs
   function makeGame(cols, rows, slots, levels) {
     const players = [];
     slots.forEach((k, i) => {
-      const level = levels && LEVELS[levels[i]] ? levels[i] : 'med';
+      const level = levels && isLevel(levels[i]) ? levels[i] : 'med';
       if (k !== 'off') players.push({ c: i, kind: k, level, alive: true, moved: false });
     });
     const n = cols * rows, nb = [], cap = [];
@@ -180,5 +185,5 @@
     return pick[(Math.random() * pick.length) | 0];
   }
 
-  return { NAMES, SIZES, LEVELS, makeGame, legal, allMoved, owners, nextAliveIndex, waveDuration, explodeWave, landWave, place, finishTurn, applyMove, cpuMove };
+  return { NAMES, SIZES, LEVELS, isLevel, isSize, makeGame, legal, allMoved, owners, nextAliveIndex, waveDuration, explodeWave, landWave, place, finishTurn, applyMove, cpuMove };
 });
