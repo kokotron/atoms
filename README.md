@@ -1,6 +1,6 @@
 # Atoms!
 
-<img width="720" height="957" alt="image" src="https://github.com/user-attachments/assets/02bf768f-c7ec-4f2e-b5e7-590a0b63c450" />
+<img width="370" height="539" alt="image" src="https://github.com/user-attachments/assets/cc4b9541-b5ad-48d8-9b02-5e198da7a044" />
 
 A browser remake of the classic chain-reaction strategy game *Atoms*, made for phones in portrait mode as well as desktop screens.
 
