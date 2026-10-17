@@ -29,7 +29,7 @@ function lanAddresses() {
 }
 
 /* ---------- rooms ---------- */
-function createRoom(host, hostName, slots, size, landscape) {
+function createRoom(host, hostName, slots, size, landscape, levels) {
   let [c, r] = Core.SIZES[size];
   if (landscape) [c, r] = [r, c];
   const room = {
@@ -39,7 +39,7 @@ function createRoom(host, hostName, slots, size, landscape) {
   room.names[host] = cleanName(hostName) || 'Host';
   // seats[c] = { ctrl: 'off' | 'cpu' | 'human', owner: clientId }
   room.seats = slots.map(k => k === 'human' ? { ctrl: 'human', owner: host } : { ctrl: k });
-  room.g = Core.makeGame(c, r, slots);
+  room.g = Core.makeGame(c, r, slots, levels);
   rooms.set(room.id, room);
   return room;
 }
@@ -140,7 +140,9 @@ async function api(req, res, url) {
     if (!slots || slots.filter(s => s !== 'off').length < 2) return json(res, 400, { error: 'Pick at least two players.' });
     if (!Core.SIZES[b.size]) return json(res, 400, { error: 'Unknown grid size.' });
     if (!validClient(b.client)) return json(res, 400, { error: 'Missing client id.' });
-    const room = createRoom(b.client, b.name, slots, b.size, !!b.landscape);
+    const levels = b.levels === undefined ? undefined : b.levels;
+    if (levels !== undefined && !(Array.isArray(levels) && levels.length === 4 && levels.every(l => Core.LEVELS[l]))) return json(res, 400, { error: 'Unknown CPU level.' });
+    const room = createRoom(b.client, b.name, slots, b.size, !!b.landscape, levels);
     return json(res, 200, { room: room.id });
   }
 
@@ -209,7 +211,8 @@ async function api(req, res, url) {
     let [c, r] = Core.SIZES[room.size];
     if (room.landscape) [c, r] = [r, c];
     const seq = room.g.seq + 1;
-    room.g = Core.makeGame(c, r, room.seats.map(s => s.ctrl));
+    const levels = room.seats.map((s, i) => (room.g.players.find(p => p.c === i) || {}).level);
+    room.g = Core.makeGame(c, r, room.seats.map(s => s.ctrl), levels);
     room.g.seq = seq;
     syncKinds(room); broadcast(room, 'state', { fresh: true }); scheduleCpu(room, 900);
     return json(res, 200, { ok: true });

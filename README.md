@@ -36,6 +36,18 @@ Other notes:
 
 Keyboard: the arrow keys move the cursor and Enter places an atom.
 
+## CPU levels
+
+The page opens with you against one Med CPU. Press **New game** to add up to three CPU players and pick a level for each one. The setup screen also explains the levels, so you can mix them, for example one Low and one High.
+
+| Level | How it plays | Good for |
+| --- | --- | --- |
+| **Low** | Mostly random. Now and then it takes the move that wins the most atoms at once, but it never notices danger. | Learning the rules |
+| **Med** (default) | Picks the move that looks best right now and prefers corners and edges. It doesn't think about your reply, so it walks into traps. | Most players |
+| **High** | Tries every move against your strongest reply and avoids squares you could blow up. Leave it an opening and it starts a chain. | A real challenge |
+
+In test games between CPUs, High beat Med and Med beat Low over 90% of the time.
+
 ## Credits
 
 This is a fan-made tribute. The game design belongs to the original authors:

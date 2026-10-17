@@ -8,10 +8,20 @@
   const NAMES = ['Coral', 'Teal', 'Amber', 'Lilac'];
   const SIZES = { '5×8': [5, 8], '6×9': [6, 9], '7×11': [7, 11] };
 
-  // slots: array of 4 entries, each 'human' | 'cpu' | 'off'
-  function makeGame(cols, rows, slots) {
+  // How strong the CPU plays. The page shows these labels and explanations.
+  const LEVELS = {
+    low: { label: 'Low', name: 'low', about: 'Mostly random. Sometimes grabs an obvious explosion, but never sees danger coming. Good for learning the rules.' },
+    med: { label: 'Med', name: 'medium', about: "Takes the best-looking move right now and likes corners and edges. It doesn't think about your reply, so it walks into traps." },
+    high: { label: 'High', name: 'high', about: 'Tests every move against your strongest reply and avoids squares you could blow up. Leave it an opening and it starts a chain.' },
+  };
+
+  // slots: array of 4 entries, each 'human' | 'cpu' | 'off'; levels: matching array of LEVELS keys for the CPUs
+  function makeGame(cols, rows, slots, levels) {
     const players = [];
-    slots.forEach((k, i) => { if (k !== 'off') players.push({ c: i, kind: k, alive: true, moved: false }); });
+    slots.forEach((k, i) => {
+      const level = levels && LEVELS[levels[i]] ? levels[i] : 'med';
+      if (k !== 'off') players.push({ c: i, kind: k, level, alive: true, moved: false });
+    });
     const n = cols * rows, nb = [], cap = [];
     for (let i = 0; i < n; i++) {
       const x = i % cols, y = (i / cols) | 0, a = [];
@@ -130,17 +140,29 @@
     return score + mine - theirs * 0.8;
   }
 
-  function cpuMove(g) {
+  // Low: random most of the time, otherwise the move that wins the most atoms at once.
+  // Med: one move deep, scored by position, with some noise so it slips up.
+  // High: two moves deep, assuming the next player answers as hard as they can.
+  function cpuMove(g, level = g.players[g.turn].level || 'med') {
     const cur = g.players[g.turn], me = cur.c, n = g.o.length;
     const moved = g.players.every(p => p.moved || p === cur || !p.alive);
     const nextP = g.players[nextAliveIndex(g, g.turn)];
+    const moves = [];
+    for (let i = 0; i < n; i++) if (legal(g, i, me)) moves.push(i);
+    if (level === 'low' && Math.random() < 0.7) return moves[(Math.random() * moves.length) | 0];
     let best = -Infinity, pick = [];
-    for (let i = 0; i < n; i++) {
-      if (!legal(g, i, me)) continue;
+    for (const i of moves) {
       const o = g.o.slice(), k = g.k.slice();
       simulate(g, o, k, i, me, moved);
-      let s = evaluate(g, o, k, me, moved);
-      if (s < 1e6 && nextP && nextP.c !== me) {
+      let s;
+      if (level === 'low') {
+        s = 0;
+        for (let j = 0; j < n; j++) if (o[j] === me) s += k[j];
+      } else {
+        s = evaluate(g, o, k, me, moved);
+      }
+      if (level === 'med') s += Math.random() * 4;
+      if (level === 'high' && s < 1e6 && nextP && nextP.c !== me) {
         // assume the next player replies with whatever hurts us most
         let worst = Infinity;
         for (let j = 0; j < n; j++) {
@@ -158,5 +180,5 @@
     return pick[(Math.random() * pick.length) | 0];
   }
 
-  return { NAMES, SIZES, makeGame, legal, allMoved, owners, nextAliveIndex, waveDuration, explodeWave, landWave, place, finishTurn, applyMove, cpuMove };
+  return { NAMES, SIZES, LEVELS, makeGame, legal, allMoved, owners, nextAliveIndex, waveDuration, explodeWave, landWave, place, finishTurn, applyMove, cpuMove };
 });

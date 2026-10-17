@@ -107,11 +107,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--turn); outl
 }
 @media (min-height: 640px) and (min-width: 560px) { .veil { place-items: center; } }
 .sheet {
-  width: 100%; max-width: 460px; max-height: calc(100% - 8px); overflow-y: auto; box-sizing: border-box;
+  width: 100%; max-width: 520px; max-height: calc(100% - 8px); overflow-y: auto; box-sizing: border-box;
   background: var(--bench); border: 1px solid var(--rule); border-radius: 18px; padding: 20px;
   display: flex; flex-direction: column; gap: 16px;
   animation: rise .35s cubic-bezier(.2,.9,.3,1.2);
 }
+.sheet > * { flex-shrink: 0; }  /* let a tall sheet scroll instead of squashing its rows */
 @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
 .sheet h2 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; margin: 0; text-wrap: balance; }
 .sheet h3 { font: 600 .7rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
@@ -129,6 +130,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--turn); outl
 }
 .seg button[aria-pressed="true"] { background: var(--rule); color: var(--text); }
 .seg button:disabled { opacity: .35; cursor: default; }
+/* CPU level sits on the player's row; on narrow screens it wraps under the row, aligned right */
+#slots .slot { flex-wrap: wrap; row-gap: 6px; }
+#slots .slot span { flex: 0 0 6ch; }
+#slots .slot .seg { align-self: center; }
+@media (max-width: 520px) { #slots .slot .seg.lvl { margin-left: auto; } }
 .small {
   background: none; border: 1px solid var(--rule); color: var(--text); border-radius: 999px; padding: 7px 12px; cursor: pointer;
   font: 600 .72rem var(--mono); letter-spacing: .05em; text-transform: uppercase; flex-shrink: 0;
@@ -193,6 +199,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--turn); outl
     </div>
     <h3>Players</h3>
     <div id="slots" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="field" id="levelField">
+      <h3>CPU levels</h3>
+      <dl class="rules" id="levelGuide"></dl>
+    </div>
     <h3>Grid</h3>
     <div class="seg" id="sizes" role="group" aria-label="Grid size"></div>
     <h3>How it works</h3>
@@ -264,6 +274,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--turn); outl
   </div>
 </div>
 
+<div class="veil" id="out" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="outTitle">
+    <h3>You're out</h3>
+    <h2 id="outTitle">The CPUs play on</h2>
+    <p id="outText"></p>
+    <div class="row">
+      <button class="ghost" id="outNew">New game</button>
+      <button class="primary" id="outWatch">Keep watching</button>
+    </div>
+  </div>
+</div>
+
 <div class="veil" id="result" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="winText">
     <h3>Reaction complete</h3>
@@ -281,7 +303,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--turn); outl
 (() => {
 'use strict';
 const Core = window.AtomsCore;
-const { NAMES, SIZES } = Core;
+const { NAMES, SIZES, LEVELS } = Core;
 const css = getComputedStyle(document.documentElement);
 const COLORS = [0,1,2,3].map(i => css.getPropertyValue('--p' + i).trim());
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -293,7 +315,9 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
 
-let cfg = { slots: ['human', 'cpu', 'off', 'off'], size: '6×9', where: 'local' };
+let cfg = { slots: ['human', 'cpu', 'off', 'off'], levels: ['med', 'med', 'med', 'med'], size: '6×9', where: 'local' };
+const levelOf = c => ((G && G.players.find(p => p.c === c)) || {}).level || 'med';
+const cpuLabel = c => `CPU ${LEVELS[levelOf(c)].label}`;
 let G = null;           // game state (same shape as Core.makeGame)
 let busy = false;       // a move is animating
 let sound = true;
@@ -342,6 +366,7 @@ async function playLocal(i) {
   busy = false;
   updateHud();
   if (winner) showResult(winner);
+  else checkHumansOut();
   maybeCpu();
 }
 
@@ -369,8 +394,25 @@ async function animateMove(i) {
   }
 }
 
+// When every human has been knocked out but two or more CPUs remain, ask once per game
+// whether to watch them finish. Local CPUs wait for the answer; network games keep running on the server.
+let outAsked = false, paused = false;
+function checkHumansOut() {
+  if (!G || G.over || outAsked) return;
+  if (net && !net.host) return;   // guests are already spectators; only the host decides on a new game
+  const humans = G.players.filter(p => p.kind === 'human');
+  const alive = G.players.filter(p => p.alive);
+  if (!humans.length || humans.some(p => p.alive) || alive.length < 2) return;
+  outAsked = true;
+  if (!net) paused = true;
+  const names = alive.map(p => NAMES[p.c]);
+  $('outText').textContent = `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} are still on the grid. Watch them until one of them wins, or start a new game.`;
+  openSheet('out');
+}
+function resume() { if (paused) { paused = false; maybeCpu(); } }
+
 async function maybeCpu() {
-  if (net || !G || G.over || busy || cur().kind !== 'cpu') return;
+  if (net || paused || !G || G.over || busy || cur().kind !== 'cpu') return;
   busy = true;
   const g = G;
   await sleep(reduced ? 150 : 420);
@@ -401,6 +443,7 @@ async function detectServer() {
 
 function connectRoom(id) {
   leaveRoom(false);
+  outAsked = false; paused = false;
   net = { room: id, seats: null, host: false, watchers: 0, queue: [], running: false, sending: false, asked: false, resultSeq: -1, fails: 0 };
   const es = new EventSource(`api/rooms/${encodeURIComponent(id)}/events?client=${encodeURIComponent(clientId)}`);
   net.es = es;
@@ -415,7 +458,7 @@ function connectRoom(id) {
       const r = await fetch(`api/rooms/${encodeURIComponent(id)}`, { cache: 'no-store' }).catch(() => null);
       if (r && r.status === 404 && net && net.es === es) {
         toast('This game no longer exists. Starting a game on this device.');
-        leaveRoom(true); startLocal();
+        leaveRoom(true); startLocal(FIRST_GAME);
       }
     }
   };
@@ -446,7 +489,7 @@ async function drain() {
     G = d.g;
     mine.seats = d.seats; mine.host = d.host; mine.watchers = d.watchers;
     if (type === 'move' && d.player !== undefined && seatOf(d.player) && seatOf(d.player).mine) mine.sending = false;
-    if (d.fresh) { $('result').hidden = true; mine.resultSeq = -1; }
+    if (d.fresh) { $('result').hidden = true; $('out').hidden = true; mine.resultSeq = -1; outAsked = false; }
     if (dims) { for (const k in sprites) delete sprites[k]; fit(); cursor = Math.floor(G.o.length / 2); }
     updateHud();
     if (!mine.asked) {
@@ -454,7 +497,8 @@ async function drain() {
       if (!mine.seats.some(s => s.mine)) openSeats();
     }
     if (!$('seats').hidden) renderSeats();
-    if (G.over && mine.resultSeq !== G.seq) { mine.resultSeq = G.seq; showResult(G.players[G.turn]); }
+    if (G.over && mine.resultSeq !== G.seq) { mine.resultSeq = G.seq; $('out').hidden = true; showResult(G.players[G.turn]); }
+    else checkHumansOut();
   }
   mine.running = false;
 }
@@ -470,7 +514,7 @@ async function startNetGame() {
   store.set('atoms-name', name);
   const st = $('stage').getBoundingClientRect();
   try {
-    const { room } = await apiPost('api/rooms', { name, slots: cfg.slots, size: cfg.size, landscape: st.width > st.height * 1.15 });
+    const { room } = await apiPost('api/rooms', { name, slots: cfg.slots, size: cfg.size, levels: cfg.levels, landscape: st.width > st.height * 1.15 });
     history.replaceState(null, '', `${location.pathname}?room=${room}`);
     connectRoom(room);
     net.asked = true;
@@ -507,7 +551,7 @@ function renderSeats() {
   $('seatsDone').textContent = mineAny ? 'Done' : 'Watch';
   $('seatList').innerHTML = net.seats.map((s, c) => {
     if (s.ctrl === 'off') return '';
-    const who = s.ctrl === 'cpu' ? 'CPU' : s.mine ? `${esc(s.name)} (you)` : `${esc(s.name)}${s.isHost ? ' · host' : ''}${s.online ? '' : ' · offline'}`;
+    const who = s.ctrl === 'cpu' ? `CPU, ${LEVELS[levelOf(c)].name} level` : s.mine ? `${esc(s.name)} (you)` : `${esc(s.name)}${s.isHost ? ' · host' : ''}${s.online ? '' : ' · offline'}`;
     const btn = s.ctrl === 'cpu' ? `<button class="small take" data-take="${c}">Take seat</button>`
       : s.mine ? `<button class="small" data-leave="${c}">Leave</button>`
       : `<button class="small" disabled>Taken</button>`;
@@ -540,9 +584,9 @@ function toast(msg) {
 }
 
 function who(p) {
-  if (!net) return p.kind === 'cpu' ? 'CPU' : 'You';
+  if (!net) return p.kind === 'cpu' ? cpuLabel(p.c) : 'You';
   const s = seatOf(p.c);
-  if (!s || s.ctrl === 'cpu') return 'CPU';
+  if (!s || s.ctrl === 'cpu') return cpuLabel(p.c);
   return s.mine ? 'You' : esc(s.name);
 }
 
@@ -781,7 +825,11 @@ canvas.addEventListener('keydown', e => {
 
 /* ---------- sheets ---------- */
 function openSheet(id) { $(id).hidden = false; const b = $(id).querySelector('.primary:not([hidden])'); b && b.focus(); }
-function closeSheet(id) { $(id).hidden = true; canvas.focus({ preventScroll: true }); }
+function closeSheet(id) {
+  $(id).hidden = true; canvas.focus({ preventScroll: true });
+  // closing the "you're out" prompt, or backing out of the new-game screen it led to, means keep watching
+  if (id === 'out' || id === 'setup') resume();
+}
 document.querySelectorAll('.veil').forEach(v => v.addEventListener('click', e => { if (e.target === v && G) closeSheet(v.id); }));
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && G) document.querySelectorAll('.veil:not([hidden])').forEach(v => closeSheet(v.id)); });
 
@@ -801,7 +849,13 @@ function renderSetup() {
     <div class="slot" style="--c:${COLORS[i]}"><i></i><span>${NAMES[i]}</span>
       <div class="seg" role="group" aria-label="${NAMES[i]}">
         ${['off', 'human', 'cpu'].map(v => `<button data-slot="${i}" data-v="${v}" aria-pressed="${k === v}">${v === 'human' ? (isNet ? 'You' : 'Human') : v === 'cpu' ? 'CPU' : 'Off'}</button>`).join('')}
-      </div></div>`).join('');
+      </div>
+      ${k === 'cpu' ? `<div class="seg lvl" role="group" aria-label="${NAMES[i]} CPU level">
+        ${Object.entries(LEVELS).map(([lv, l]) => `<button data-lvl-slot="${i}" data-lvl="${lv}" aria-pressed="${cfg.levels[i] === lv}">${l.label}</button>`).join('')}
+      </div>` : ''}
+    </div>`).join('');
+  $('levelField').hidden = !cfg.slots.includes('cpu');
+  $('levelGuide').innerHTML = Object.values(LEVELS).map(l => `<dt>${l.label}</dt><dd>${l.about}</dd>`).join('');
   $('sizes').innerHTML = Object.keys(SIZES).map(k => `<button data-size="${k}" aria-pressed="${cfg.size === k}">${k}</button>`).join('');
   const on = cfg.slots.filter(s => s !== 'off').length;
   $('startBtn').disabled = on < 2;
@@ -812,6 +866,8 @@ $('where').addEventListener('click', e => {
   cfg.where = b.dataset.where; renderSetup();
 });
 $('slots').addEventListener('click', e => {
+  const lv = e.target.closest('button[data-lvl]');
+  if (lv) { cfg.levels[+lv.dataset.lvlSlot] = lv.dataset.lvl; return renderSetup(); }
   const b = e.target.closest('button[data-slot]'); if (!b) return;
   cfg.slots[+b.dataset.slot] = b.dataset.v; renderSetup();
 });
@@ -820,16 +876,25 @@ $('sizes').addEventListener('click', e => {
   cfg.size = b.dataset.size; renderSetup();
 });
 
-function startLocal() {
-  let [c, r] = SIZES[cfg.size];
+// The game that opens with the page: you against one medium CPU. "New game" offers the saved setup instead.
+const FIRST_GAME = { slots: ['human', 'cpu', 'off', 'off'], levels: ['med', 'med', 'med', 'med'], size: '6×9' };
+
+let lastSetup = FIRST_GAME;
+function startLocal(setup = cfg) {
+  lastSetup = { slots: [...setup.slots], levels: [...setup.levels], size: setup.size };
+  let [c, r] = SIZES[setup.size];
   const st = $('stage').getBoundingClientRect();
   if (st.width > st.height * 1.15) [c, r] = [r, c];   // landscape screens get a landscape grid
-  G = Core.makeGame(c, r, cfg.slots);
+  G = Core.makeGame(c, r, setup.slots, setup.levels);
   busy = false; fx.particles = []; fx.flashes = []; fx.bumps.clear(); fx.shakes.clear();
+  outAsked = false; paused = false;
   cursor = Math.floor(G.o.length / 2);
   for (const k in sprites) delete sprites[k];
   fit(); updateHud(); maybeCpu();
 }
+
+$('outWatch').onclick = () => closeSheet('out');
+$('outNew').onclick = () => { $('out').hidden = true; renderSetup(); openSheet('setup'); };
 
 function saveCfg() { store.set('atoms-cfg', JSON.stringify(cfg)); }
 
@@ -859,7 +924,7 @@ $('inviteCopy').onclick = async () => {
 $('rematchBtn').onclick = async () => {
   closeSheet('result');
   if (net) { try { await apiPost(`api/rooms/${net.room}/rematch`, {}); } catch (e) { toast(e.message); } }
-  else startLocal();
+  else startLocal(lastSetup);
 };
 $('resultSetup').onclick = () => {
   closeSheet('result');
@@ -881,6 +946,10 @@ new ResizeObserver(() => {
 /* ---------- boot ---------- */
 async function start(data) {
   try { const s = JSON.parse(store.get('atoms-cfg')); if (s && Array.isArray(s.slots) && SIZES[s.size]) cfg = { ...cfg, ...s }; } catch {}
+  // older saved setups had one level for every CPU
+  if (!Array.isArray(cfg.levels) || cfg.levels.length !== 4) cfg.levels = new Array(4).fill(LEVELS[cfg.cpu] ? cfg.cpu : 'med');
+  cfg.levels = cfg.levels.map(l => LEVELS[l] ? l : 'med');
+  delete cfg.cpu;
   if (store.get('atoms-sound') === '0') { sound = false; $('soundBtn').textContent = 'Muted'; $('soundBtn').setAttribute('aria-pressed', 'false'); }
   requestAnimationFrame(loop);
   const room = new URLSearchParams(location.search).get('room');
@@ -891,14 +960,15 @@ async function start(data) {
     toast("Can't reach the game server. Starting a game on this device.");
     history.replaceState(null, '', location.pathname);
   }
-  if (data && data.G && data.cfg) {
-    cfg = data.cfg; G = data.G; fit(); updateHud();
+  if (data && data.G) {
+    // a game carried over from an earlier version of this page keeps going; settings come from storage above
+    G = data.G; G.seq = G.seq || 0; fit(); updateHud();
     if (G.k.some((v, i) => v >= G.cap[i])) {
       busy = true;
       (async () => { let b; while ((b = Core.explodeWave(G))) { Core.landWave(G, b); } Core.finishTurn(G); busy = false; updateHud(); maybeCpu(); })();
     } else maybeCpu();
   } else {
-    startLocal();
+    startLocal(FIRST_GAME);
   }
   if (!server) detectServer().then(s => { server = s; });
 }
