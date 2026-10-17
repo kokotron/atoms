@@ -83,6 +83,6 @@ This remake is new code and graphics, written from the published rules. It uses 
 
 ## Licence
 
-The code in this repository is released under the [MIT Licence](LICENSE), © 2026 Kostas Gerontis. The licence covers this remake's code and graphics only. The game design and the name *Atoms* come from the original authors credited above.
+The code in this repository is released under the [MIT Licence](LICENSE), © 2026 kokotron. The licence covers this remake's code and graphics only. The game design and the name *Atoms* come from the original authors credited above.
 
 Fonts: [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) and [IBM Plex Mono](https://fonts.google.com/specimen/IBM+Plex+Mono), loaded from Google Fonts.
